@@ -15,6 +15,8 @@ app.use('/api/delfoi', delfoiRoutes);
 
 // Fonction pour exécuter la récupération des données sans chevauchement
 let isFetching = false;
+let fetchInterval;
+
 const executeDataFetch = async () => {
     if (isFetching) {
         console.log("⚠️ Une exécution est déjà en cours, on ignore cette exécution...");
@@ -34,15 +36,21 @@ const executeDataFetch = async () => {
     }
 };
 
-// Exécuter immédiatement fetchAndStoreDelfoiData au démarrage du serveur
+// Fonction pour programmer la récupération toutes les 3 minutes
+const startFetchInterval = () => {
+    if (fetchInterval) clearInterval(fetchInterval);
+    fetchInterval = setInterval(() => {
+        console.log("🕒 Planification de fetchAndStoreDelfoiData...");
+        executeDataFetch();
+    }, 180000); // 180000 ms = 3 minutes
+};
+
+// Exécuter immédiatement la récupération des données au démarrage
 console.log("🚀 Exécution initiale de fetchAndStoreDelfoiData...");
 executeDataFetch();
 
-// Exécuter fetchAndStoreDelfoiData toutes les 3 minutes
-setInterval(() => {
-    console.log("🕒 Planification de fetchAndStoreDelfoiData...");
-    executeDataFetch();
-}, 180000); // 180000 ms = 3 minutes
+// Lancer le cycle toutes les 3 minutes
+startFetchInterval();
 
 app.listen(PORT, () => {
     console.log(`✅ Serveur démarré sur le port ${PORT}`);
