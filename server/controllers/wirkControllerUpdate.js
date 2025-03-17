@@ -79,8 +79,13 @@ const ensureCustomFieldsExist = async () => {
     }
 };
 
+// 🔹 Fonction pour extraire `FM_NoCom` depuis `Title`
 const extractFMNoCom = (title) => {
     const match = title.match(/^MP-(\d+)-/);
+    return match ? match[1].padStart(8, '0') : null;
+};
+const extractFMLink = (title) => {
+    const match = title.match(/^(MP-\d+-\d+)/);
     return match ? match[1] : null;
 };
 
@@ -115,7 +120,7 @@ const updateRecentProjects = async () => {
             if (!project.title.startsWith("MP-")) continue; // Filtrer uniquement les projets "MP-"
 
             const fmNoCom = extractFMNoCom(project.title);
-
+            const fmLink = extractFMLink(project.title);
             const customFieldValues = {};
             for (const cf of project.customFields || []) {
                 if (customFieldMap[cf.id]) {
@@ -133,9 +138,9 @@ const updateRecentProjects = async () => {
                 }
             }
 
-            const fields = ["ID", "Permalink", "AccountId", "Title", "FM_NoCom", "CreatedDate", "UpdatedDate", "WorkflowId", ...Object.keys(customFieldValues)];
+            const fields = ["ID", "Permalink", "AccountId", "Title", "FM_NoCom", "FM_LINK", "CreatedDate", "UpdatedDate", "WorkflowId", ...Object.keys(customFieldValues)];
             const updateFields = fields.map(col => `${col} = ?`).join(", ");
-            const values = [project.id, project.permalink, project.accountId, project.title,fmNoCom, formatDateForMySQL(project.createdDate), formatDateForMySQL(project.updatedDate), project.workflowId, ...Object.values(customFieldValues), project.id];
+            const values = [project.id, project.permalink, project.accountId, project.title,fmNoCom, fmLink, formatDateForMySQL(project.createdDate), formatDateForMySQL(project.updatedDate), project.workflowId, ...Object.values(customFieldValues), project.id];
 
             await db.execute(`
                 UPDATE wrike_projects 

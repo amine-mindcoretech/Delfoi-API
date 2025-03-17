@@ -72,9 +72,12 @@ const formatDateForMySQL = (isoDate) => {
 // 🔹 Fonction pour extraire `FM_NoCom` depuis `Title`
 const extractFMNoCom = (title) => {
     const match = title.match(/^MP-(\d+)-/);
+    return match ? match[1].padStart(8, '0') : null;
+};
+const extractFMLink = (title) => {
+    const match = title.match(/^(MP-\d+-\d+)/);
     return match ? match[1] : null;
 };
-
 // 🔹 Création de la table si elle n'existe pas
 const createTableIfNotExists = async () => {
     try {
@@ -85,6 +88,7 @@ const createTableIfNotExists = async () => {
                 AccountId VARCHAR(50),
                 Title TEXT,
                 FM_NoCom VARCHAR(50),
+                FM_LINK VARCHAR(100),
                 CreatedDate DATETIME,
                 UpdatedDate DATETIME,
                 WorkflowId VARCHAR(100)
@@ -196,7 +200,7 @@ const fetchAndStoreWrikeData = async () => {
             await sleep(100); // Délai pour éviter les erreurs 429
 
             const fmNoCom = extractFMNoCom(folder.title);
-
+            const fmLink = extractFMLink(folder.title);
             const customFieldValues = {};
             for (const cf of folder.customFields || []) {
                 if (customFieldMap[cf.id]) {
@@ -214,9 +218,9 @@ const fetchAndStoreWrikeData = async () => {
                 }
             }
 
-            const fields = ["ID", "Permalink", "AccountId", "Title","FM_NoCom", "CreatedDate", "UpdatedDate", "WorkflowId", ...Object.keys(customFieldValues)];
+            const fields = ["ID", "Permalink", "AccountId", "Title","FM_NoCom", "FM_LINK", "CreatedDate", "UpdatedDate", "WorkflowId", ...Object.keys(customFieldValues)];
             const placeholders = fields.map(() => "?").join(", ");
-            const values = [folder.id, folder.permalink, folder.accountId, folder.title,fmNoCom , formatDateForMySQL(folder.createdDate), formatDateForMySQL(folder.updatedDate), folder.workflowId, ...Object.values(customFieldValues)];
+            const values = [folder.id, folder.permalink, folder.accountId, folder.title, fmNoCom, fmLink, formatDateForMySQL(folder.createdDate), formatDateForMySQL(folder.updatedDate), folder.workflowId, ...Object.values(customFieldValues)];
 
             await db.execute(`
                 INSERT INTO wrike_projects (${fields.join(", ")}) VALUES (${placeholders})
