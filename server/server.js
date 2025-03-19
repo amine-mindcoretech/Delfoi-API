@@ -4,8 +4,10 @@ const dotenv = require('dotenv');
 const db = require('./config/db');
 const delfoiRoutes = require('./routes/delfoiRoutes');
 const wrikeRoutes = require('./routes/wrikeRoutes');
+
 const { fetchAndStoreDelfoiData } = require('./controllers/delfoiController');
-const { syncWrikeData } = require('./controllers/wirkControllerUpdate'); // Import de syncWrikeData
+const { syncWrikeActive } = require('./controllers/wirkControllerUpdate');
+const { syncWrikeAnnuleTermineAndCleanActive } = require('./controllers/wrikeControllerUpdateAnnulesTermines');
 
 dotenv.config();
 
@@ -14,13 +16,15 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
-// ✅ Fonction pour exécuter la récupération des données sans chevauchement
+// ✅ États pour éviter les exécutions concurrentes
 let isFetchingDelfoi = false;
-let isFetchingWrike = false;
+let isFetchingWrikeActive = false;
+let isFetchingWrikeAnnuleTermine = false;
 let fetchIntervalDelfoi;
-let fetchIntervalWrike;
+let fetchIntervalWrikeActive;
+let fetchIntervalWrikeAnnuleTermine;
 
-// 🔄 Fonction pour exécuter fetchAndStoreDelfoiData
+// 🔄 Fonction pour exécuter `fetchAndStoreDelfoiData`
 const executeDelfoiDataFetch = async () => {
     if (isFetchingDelfoi) {
         console.log("⚠️ Une exécution de fetchAndStoreDelfoiData est déjà en cours, on ignore cette exécution...");
@@ -40,54 +44,84 @@ const executeDelfoiDataFetch = async () => {
     }
 };
 
-// 🔄 Fonction pour exécuter syncWrikeData
-const executeWrikeDataFetch = async () => {
-    if (isFetchingWrike) {
-        console.log("⚠️ Une exécution de syncWrikeData est déjà en cours, on ignore cette exécution...");
+// 🔄 Fonction pour exécuter `syncWrikeActive` (Wrike Actifs)
+const executeWrikeActiveFetch = async () => {
+    if (isFetchingWrikeActive) {
+        console.log("⚠️ Une exécution de syncWrikeActive est déjà en cours, on ignore cette exécution...");
         return;
     }
 
-    isFetchingWrike = true;
-    console.log("🔄 Exécution de syncWrikeData...");
+    isFetchingWrikeActive = true;
+    console.log("🔄 Exécution de syncWrikeActive...");
 
     try {
-        await syncWrikeData();
-        console.log("✅ Synchronisation des données Wrike terminée !");
+        await syncWrikeActive();
+        console.log("✅ Synchronisation des données Wrike Active terminée !");
     } catch (error) {
-        console.error("❌ Erreur lors de la synchronisation des données Wrike :", error);
+        console.error("❌ Erreur lors de la synchronisation des données Wrike Active :", error);
     } finally {
-        isFetchingWrike = false;
+        isFetchingWrikeActive = false;
     }
 };
 
-// 🔄 Planification de l'exécution automatique
-const startFetchIntervals = () => {
-    if (fetchIntervalDelfoi) clearInterval(fetchIntervalDelfoi);
-    if (fetchIntervalWrike) clearInterval(fetchIntervalWrike);
+// 🔄 Fonction pour exécuter `syncWrikeAnnuleTermineAndCleanActive` (Wrike Annulés & Terminés)
+const executeWrikeAnnuleTermineFetch = async () => {
+    if (isFetchingWrikeAnnuleTermine) {
+        console.log("⚠️ Une exécution de syncWrikeAnnuleTermineAndCleanActive est déjà en cours, on ignore cette exécution...");
+        return;
+    }
 
-    // ⏳ Exécution toutes les 3 minutes pour Delfoi
+    isFetchingWrikeAnnuleTermine = true;
+    console.log("🔄 Exécution de syncWrikeAnnuleTermineAndCleanActive...");
+
+    try {
+        await syncWrikeAnnuleTermineAndCleanActive();
+        console.log("✅ Synchronisation des projets annulés & terminés terminée !");
+    } catch (error) {
+        console.error("❌ Erreur lors de la synchronisation des projets annulés & terminés :", error);
+    } finally {
+        isFetchingWrikeAnnuleTermine = false;
+    }
+};
+
+// 🔄 Fonction pour redémarrer les intervalles
+const resetFetchIntervals = () => {
+    if (fetchIntervalDelfoi) clearInterval(fetchIntervalDelfoi);
+    if (fetchIntervalWrikeActive) clearInterval(fetchIntervalWrikeActive);
+    if (fetchIntervalWrikeAnnuleTermine) clearInterval(fetchIntervalWrikeAnnuleTermine);
+
+    console.log("🔄 Réinitialisation des intervalles de synchronisation...");
+
+    // ⏳ Exécution toutes les 30 minutes pour Delfoi
     fetchIntervalDelfoi = setInterval(() => {
         console.log("🕒 Planification de fetchAndStoreDelfoiData...");
         executeDelfoiDataFetch();
-    }, 180000); // 180000 ms = 3 minutes
+    }, 1800000); // 30 minutes
 
-    // ⏳ Exécution toutes les 30 minutes pour Wrike
-    fetchIntervalWrike = setInterval(() => {
-        console.log("🕒 Planification de syncWrikeData...");
-        executeWrikeDataFetch();
-    }, 1800000); // 1800000 ms = 30 minutes
+    // ⏳ Exécution toutes les 30 minutes pour Wrike Active
+    fetchIntervalWrikeActive = setInterval(() => {
+        console.log("🕒 Planification de syncWrikeActive...");
+        executeWrikeActiveFetch();
+    }, 1800000); // 30 minutes
+
+    // ⏳ Exécution toutes les 30 minutes pour Wrike Annulés & Terminés
+    fetchIntervalWrikeAnnuleTermine = setInterval(() => {
+        console.log("🕒 Planification de syncWrikeAnnuleTermineAndCleanActive...");
+        executeWrikeAnnuleTermineFetch();
+    }, 1800000); // 30 minutes
 };
 
-// 🚀 Exécution initiale des deux récupérations au démarrage
-console.log("🚀 Exécution initiale de fetchAndStoreDelfoiData et syncWrikeData...");
+// 🚀 Exécution initiale de toutes les tâches au démarrage
+console.log("🚀 Exécution initiale de toutes les tâches...");
 executeDelfoiDataFetch();
-executeWrikeDataFetch();
+executeWrikeActiveFetch();
+executeWrikeAnnuleTermineFetch();
 
 // 🔄 Lancer le cycle automatique
-startFetchIntervals();
+resetFetchIntervals();
 
 app.use('/api/delfoi', delfoiRoutes);
-app.use('/WrikeProjects', wrikeRoutes);
+app.use('/api/wrike', wrikeRoutes);
 
 app.listen(PORT, () => {
     console.log(`✅ Serveur démarré sur le port ${PORT}`);

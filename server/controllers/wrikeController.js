@@ -82,7 +82,7 @@ const extractFMLink = (title) => {
 const createTableIfNotExists = async () => {
     try {
         await db.execute(`
-            CREATE TABLE IF NOT EXISTS wrike_projects (
+            CREATE TABLE IF NOT EXISTS wrike_projects_active (
                 ID VARCHAR(50) PRIMARY KEY,
                 Permalink TEXT,
                 AccountId VARCHAR(50),
@@ -94,7 +94,7 @@ const createTableIfNotExists = async () => {
                 WorkflowId VARCHAR(100)
             )
         `);
-        console.log("✅ Table `wrike_projects` vérifiée/créée.");
+        console.log("✅ Table `wrike_projects_active` vérifiée/créée.");
     } catch (error) {
         console.error("❌ Erreur lors de la création de la table :", error.message);
     }
@@ -133,12 +133,12 @@ const fetchCustomFieldsMapping = async () => {
 // 🔹 Vérifier et ajouter les nouvelles colonnes pour les champs personnalisés
 const ensureColumnsExist = async (customFieldTypes) => {
     try {
-        const [rows] = await db.execute("SHOW COLUMNS FROM wrike_projects");
+        const [rows] = await db.execute("SHOW COLUMNS FROM wrike_projects_active");
         const existingColumns = rows.map(row => row.Field);
 
         for (const [columnName, columnType] of Object.entries(customFieldTypes)) {
             if (!existingColumns.includes(columnName)) {
-                await db.execute(`ALTER TABLE wrike_projects ADD COLUMN ${columnName} ${columnType}`);
+                await db.execute(`ALTER TABLE wrike_projects_active ADD COLUMN ${columnName} ${columnType}`);
                 console.log(`✅ Nouvelle colonne ajoutée : ${columnName} (${columnType})`);
             }
         }
@@ -178,7 +178,7 @@ const fetchFolderDetails = async (folderId) => {
 };
 
 // 🔹 Récupérer et stocker tous les folders d'un espace dans la BDD
-const fetchAndStoreWrikeData = async () => {
+const creationWrikeTableActive = async () => {
     try {
         console.log("🚀 Début de la récupération des projets Wrike...");
 
@@ -223,7 +223,7 @@ const fetchAndStoreWrikeData = async () => {
             const values = [folder.id, folder.permalink, folder.accountId, folder.title, fmNoCom, fmLink, formatDateForMySQL(folder.createdDate), formatDateForMySQL(folder.updatedDate), folder.workflowId, ...Object.values(customFieldValues)];
 
             await db.execute(`
-                INSERT INTO wrike_projects (${fields.join(", ")}) VALUES (${placeholders})
+                INSERT INTO wrike_projects_active (${fields.join(", ")}) VALUES (${placeholders})
                 ON DUPLICATE KEY UPDATE ${fields.map(col => `${col} = VALUES(${col})`).join(", ")}
             `, values);
 
@@ -236,7 +236,7 @@ const fetchAndStoreWrikeData = async () => {
     }
 };
 
-module.exports = { fetchAndStoreWrikeData };
+module.exports = { creationWrikeTableActive };
 
 
 

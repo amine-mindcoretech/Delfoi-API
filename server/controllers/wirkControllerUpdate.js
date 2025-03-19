@@ -55,7 +55,7 @@ const ensureCustomFieldsExist = async () => {
             return {};
         }
 
-        const [rows] = await db.execute("SHOW COLUMNS FROM wrike_projects");
+        const [rows] = await db.execute("SHOW COLUMNS FROM wrike_projects_active");
         const existingColumns = rows.map(row => row.Field);
 
         const customFieldMap = {};
@@ -65,7 +65,7 @@ const ensureCustomFieldsExist = async () => {
             const columnName = formatColumnName(field.title);
             if (!existingColumns.includes(columnName)) {
                 const columnType = mapWrikeTypeToSQL(field.type);
-                await db.execute(`ALTER TABLE wrike_projects ADD COLUMN ${columnName} ${columnType}`);
+                await db.execute(`ALTER TABLE wrike_projects_active ADD COLUMN ${columnName} ${columnType}`);
                 console.log(`✅ Nouveau champ ajouté : ${columnName} (${columnType})`);
             }
             customFieldMap[field.id] = columnName;
@@ -143,7 +143,7 @@ const updateRecentProjects = async () => {
             const values = [project.id, project.permalink, project.accountId, project.title,fmNoCom, fmLink, formatDateForMySQL(project.createdDate), formatDateForMySQL(project.updatedDate), project.workflowId, ...Object.values(customFieldValues), project.id];
 
             await db.execute(`
-                UPDATE wrike_projects 
+                UPDATE wrike_projects_active 
                 SET ${updateFields}
                 WHERE id = ?
             `, values);
@@ -158,7 +158,7 @@ const updateRecentProjects = async () => {
 };
 
 // 🔹 Fonction principale pour synchroniser les données Wrike
-const syncWrikeData = async () => {
+const syncWrikeActive = async () => {
     try {
         console.log("🚀 Lancement de la synchronisation des données Wrike...");
 
@@ -174,4 +174,5 @@ const syncWrikeData = async () => {
     }
 };
 
-module.exports = { syncWrikeData };
+module.exports = { syncWrikeActive };
+
