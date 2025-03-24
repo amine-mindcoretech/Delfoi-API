@@ -13,6 +13,7 @@ const { syncWrikeAnnuleTermineAndCleanActive } = require('./controllers/wrikeCon
 const { fetchAndStoreWrikeTasks, updateRecentWrikeTasks } = require('./controllers/wrikeTasksController');
 const { fetchAndStoreWrikeWorkflows } = require('./controllers/wrikeWorkflowsController');
 const { updateRecentWrikeComments } = require('./controllers/wrikeCommentsController');
+const { fetchAndStoreDelfoiSignatures } = require('./controllers/delfoiSignaturesController');
 
 
 
@@ -30,12 +31,15 @@ let isFetchingWrikeAnnuleTermine = false;
 let isFetchingWrikeTasks = false;
 let isFetchingWrikeWorkflows = false;
 let isFetchingWrikeComments = false;
+let isFetchingDelfoiSignatures = false;
 let fetchIntervalDelfoi;
 let fetchIntervalWrikeActive;
 let fetchIntervalWrikeAnnuleTermine;
 let fetchIntervalWrikeTasks;
 let fetchIntervalWrikeWorkflows;
 let fetchIntervalWrikeWorkComments;
+let fetchIntervalDelfoiSignatures;
+
 
 // 🔄 Fonction pour exécuter `fetchAndStoreDelfoiData`
 const executeDelfoiDataFetch = async () => {
@@ -54,6 +58,25 @@ const executeDelfoiDataFetch = async () => {
         console.error("❌ Erreur lors de la récupération des données Delfoi :", error);
     } finally {
         isFetchingDelfoi = false;
+    }
+};
+
+const executeDelfoiSignaturesFetch = async () => {
+    if (isFetchingDelfoiSignatures) {
+        console.log("⚠️ Une exécution de fetchAndStoreDelfoiSignatures est déjà en cours...");
+        return;
+    }
+
+    isFetchingDelfoiSignatures = true;
+    console.log("🔄 Exécution de fetchAndStoreDelfoiSignatures...");
+
+    try {
+        await fetchAndStoreDelfoiSignatures();
+        console.log("✅ Signatures Delfoi synchronisées !");
+    } catch (error) {
+        console.error("❌ Erreur lors de la synchronisation des signatures :", error.message);
+    } finally {
+        isFetchingDelfoiSignatures = false;
     }
 };
 
@@ -166,6 +189,7 @@ const resetFetchIntervals = () => {
     if (fetchIntervalWrikeTasks) clearInterval(fetchIntervalWrikeTasks);
     if (fetchIntervalWrikeWorkflows) clearInterval(fetchIntervalWrikeWorkflows);
     if (fetchIntervalWrikeWorkComments) clearInterval(fetchIntervalWrikeWorkComments);
+    if (fetchIntervalDelfoiSignatures) clearInterval(fetchIntervalDelfoiSignatures);
 
  
     console.log("🔄 Réinitialisation des intervalles de synchronisation...");
@@ -174,6 +198,12 @@ const resetFetchIntervals = () => {
     fetchIntervalDelfoi = setInterval(() => {
         console.log("🕒 Planification de fetchAndStoreDelfoiData...");
         executeDelfoiDataFetch();
+    }, 1800000); // 30 minutes
+
+    // ⏳ Exécution toutes les 30 minutes pour les signatures Delfoi
+    fetchIntervalDelfoiSignatures = setInterval(() => {
+        console.log("🕒 Planification de fetchAndStoreDelfoiSignatures...");
+        executeDelfoiSignaturesFetch();
     }, 1800000); // 30 minutes
 
     // ⏳ Exécution toutes les 30 minutes pour Wrike Active
@@ -211,6 +241,7 @@ executeWrikeAnnuleTermineFetch();
 executeWrikeTasksUpdate();
 executeWrikeWorkflowsFetch();
 executeUpdateRecentWrikeComments();
+executeDelfoiSignaturesFetch();
 // 🔄 Lancer le cycle automatique
 resetFetchIntervals();
 

@@ -275,7 +275,7 @@ const updateRecentWrikeComments = async () => {
 
 module.exports = { fetchAndStoreAllWrikeComments, updateRecentWrikeComments, createWrikeCommentsTable };
 
-//Commentaires liés à des tâches
+// Commentaires liés à des tâches
 // SELECT 
 //     c.Id AS Comment_Id,
 //     c.AuthorId AS Comment_AuthorId,
