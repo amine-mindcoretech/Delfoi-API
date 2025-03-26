@@ -8,12 +8,17 @@ const wrikeTasksRoutes = require('./routes/wrikeTasksRoutes');
 const wrikeWorkflowsRoutes = require('./routes/wrikeWorkflowsRoutes');
 const wrikeCommentsRoutes = require('./routes/wrikeCommentsRoutes');
 const { fetchAndStoreDelfoiData } = require('./controllers/delfoiController');
+const sharepointRoutes = require('./routes/sharepointRoutes');
 const { syncWrikeActive } = require('./controllers/wirkControllerUpdate');
 const { syncWrikeAnnuleTermineAndCleanActive } = require('./controllers/wrikeControllerUpdateAnnulesTermines');
 const { fetchAndStoreWrikeTasks, updateRecentWrikeTasks } = require('./controllers/wrikeTasksController');
 const { fetchAndStoreWrikeWorkflows } = require('./controllers/wrikeWorkflowsController');
 const { updateRecentWrikeComments } = require('./controllers/wrikeCommentsController');
 const { fetchAndStoreDelfoiSignatures } = require('./controllers/delfoiSignaturesController');
+const { fetchRecentUpdatedItems } = require('./controllers/sharepointController');
+
+
+
 
 
 
@@ -32,6 +37,7 @@ let isFetchingWrikeTasks = false;
 let isFetchingWrikeWorkflows = false;
 let isFetchingWrikeComments = false;
 let isFetchingDelfoiSignatures = false;
+let isFetchingSharepoint = false;
 let fetchIntervalDelfoi;
 let fetchIntervalWrikeActive;
 let fetchIntervalWrikeAnnuleTermine;
@@ -39,6 +45,7 @@ let fetchIntervalWrikeTasks;
 let fetchIntervalWrikeWorkflows;
 let fetchIntervalWrikeWorkComments;
 let fetchIntervalDelfoiSignatures;
+let fetchIntervalSharepoint;
 
 
 // 🔄 Fonction pour exécuter `fetchAndStoreDelfoiData`
@@ -180,6 +187,26 @@ const executeUpdateRecentWrikeComments = async () => {
         isFetchingWrikeComments = false;
     }
 };
+//🔄 Fonction pour exécuter la sychnorinastion de l'inventaire dans Sharepoint
+const executeSharepointFetch = async () => {
+    if (isFetchingSharepoint) {
+        console.log("⚠️ Une exécution SharePoint est déjà en cours...");
+        return;
+    }
+
+    isFetchingSharepoint = true;
+    console.log("🔄 Exécution de fetchRecentUpdatedItems...");
+
+    try {
+        await fetchRecentUpdatedItems();
+        console.log("✅ Données SharePoint mises à jour !");
+    } catch (error) {
+        console.error("❌ Erreur lors de la synchronisation SharePoint :", error.message);
+    } finally {
+        isFetchingSharepoint = false;
+    }
+};
+
 
 // 🔄 Fonction pour redémarrer les intervalles
 const resetFetchIntervals = () => {
@@ -190,6 +217,7 @@ const resetFetchIntervals = () => {
     if (fetchIntervalWrikeWorkflows) clearInterval(fetchIntervalWrikeWorkflows);
     if (fetchIntervalWrikeWorkComments) clearInterval(fetchIntervalWrikeWorkComments);
     if (fetchIntervalDelfoiSignatures) clearInterval(fetchIntervalDelfoiSignatures);
+    if (fetchIntervalSharepoint) clearInterval(fetchIntervalSharepoint);
 
  
     console.log("🔄 Réinitialisation des intervalles de synchronisation...");
@@ -231,6 +259,11 @@ const resetFetchIntervals = () => {
         console.log("🕒 Planification de fetchIntervalWrikeWorkComments...");
         executeUpdateRecentWrikeComments();
     }, 1800000); // 30 minutes
+
+    fetchIntervalSharepoint = setInterval(() => {
+        console.log("🕒 Planification de fetch inventaire sharepoint...");
+        executeSharepointFetch();
+    }, 2400000); // 40 minutes = 2.4M ms
 };
 
 // 🚀 Exécution initiale de toutes les tâches au démarrage
@@ -242,6 +275,7 @@ executeWrikeTasksUpdate();
 executeWrikeWorkflowsFetch();
 executeUpdateRecentWrikeComments();
 executeDelfoiSignaturesFetch();
+executeSharepointFetch();
 // 🔄 Lancer le cycle automatique
 resetFetchIntervals();
 
@@ -250,6 +284,7 @@ app.use('/api/wrike', wrikeRoutes);
 app.use('/api/wrikeTasks', wrikeTasksRoutes);
 app.use('/api/workflows', wrikeWorkflowsRoutes);
 app.use('/api/wrikeComments', wrikeCommentsRoutes);
+app.use('/api/sharepoint', sharepointRoutes);
 
 app.listen(PORT, () => {
     console.log(`✅ Serveur démarré sur le port ${PORT}`);
